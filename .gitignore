@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+config.json
+session.pkl
+seen_items.json
+captcha.png
+debug_*.png
+test_click_debug.png
