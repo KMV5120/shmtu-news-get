@@ -1,4 +1,3 @@
 @echo off
-:: Launcher: set UTF-8 codepage before parsing the main script
-chcp 65001 >nul 2>&1
+:: Launcher — run.bat now handles encoding internally
 call "%~dp0run.bat"
