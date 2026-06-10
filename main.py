@@ -129,7 +129,7 @@ def run_setup():
     subprocess.run(f'schtasks /delete /tn "{task_name}" /f',
                    shell=True, capture_output=True)
     r = subprocess.run(
-        f'schtasks /create /tn "{task_name}" /tr "{program}" /sc daily /st 08:00 /f',
+        f'schtasks /create /tn "{task_name}" /tr "{program}" /sc weekly /d SAT /st 18:00 /f',
         shell=True, capture_output=True, text=True)
     print("[安装] ✅ 成功" if r.returncode == 0 else f"[安装] ❌ {r.stderr}")
 

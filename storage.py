@@ -9,6 +9,16 @@ from typing import Optional
 
 from config import SEEN_ITEMS_FILE
 
+# 确保文件路径始终相对于脚本所在目录，不受 CWD 影响
+_SCRIPT_DIR = Path(__file__).parent
+
+
+def _get_items_path() -> Path:
+    name = SEEN_ITEMS_FILE
+    # 如果已是绝对路径则直接用，否则拼到脚本目录
+    p = Path(name)
+    return p if p.is_absolute() else _SCRIPT_DIR / name
+
 
 def load_seen_items() -> dict[str, str]:
     """
@@ -17,7 +27,7 @@ def load_seen_items() -> dict[str, str]:
     Returns:
         {"<item_id>": "<首次发现日期>"}
     """
-    path = Path(SEEN_ITEMS_FILE)
+    path = _get_items_path()
     if not path.exists():
         return {}
     try:
@@ -31,7 +41,7 @@ def load_seen_items() -> dict[str, str]:
 
 def save_seen_items(items: dict[str, str]):
     """保存已见条目记录"""
-    path = Path(SEEN_ITEMS_FILE)
+    path = _get_items_path()
     with open(path, "w", encoding="utf-8") as f:
         json.dump({"items": items, "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")},
                   f, ensure_ascii=False, indent=2)
