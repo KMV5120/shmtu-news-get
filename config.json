@@ -1,0 +1,6 @@
+{
+    "username": "你的学号或工号",
+    "password": "你的统一认证密码",
+    "pushplus_token": "你的PushPlus Token",
+    "deepseek_api_key": "你的DeepSeek API Key"
+}
