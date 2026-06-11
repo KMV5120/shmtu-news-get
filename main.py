@@ -20,7 +20,7 @@ from datetime import datetime
 
 from playwright.sync_api import sync_playwright
 
-from config import SECTIONS, USERNAME, PASSWORD, PUSHPLUS_TOKEN, USER_AGENT
+from config import SECTIONS, USERNAME, PASSWORD, PUSHPLUS_TOKEN, USER_AGENT, CHROMIUM_EXECUTABLE
 from auth import login_and_get_portal_url
 from scraper import PortalScraper, run_discover
 from summarizer import summarize_articles
@@ -48,7 +48,11 @@ def _create_browser_context(playwright):
     args = ["--disable-blink-features=AutomationControlled"]
     if proxy:
         args.append(f"--proxy-server={proxy}")
-    browser = playwright.chromium.launch(headless=True, args=args)
+    browser = playwright.chromium.launch(
+        headless=True,
+        args=args,
+        executable_path=CHROMIUM_EXECUTABLE,  # 为 None 时用 Playwright 自带的 Chromium
+    )
     context = browser.new_context(user_agent=USER_AGENT)
     return browser, context
 

@@ -73,3 +73,8 @@ MAX_ITEMS_PER_SECTION = 10
 # ============================================================
 REQUEST_TIMEOUT = 15
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+# ============================================================
+# 浏览器配置（可指定系统 Edge 路径，省去 Playwright Chromium 下载）
+# ============================================================
+CHROMIUM_EXECUTABLE = os.getenv("CHROMIUM_EXECUTABLE", _cfg.get("chromium_executable", "")) or None
