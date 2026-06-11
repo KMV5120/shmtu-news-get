@@ -15,8 +15,10 @@
 """
 
 import sys
+import os
 import traceback
 from datetime import datetime
+from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
@@ -74,6 +76,136 @@ def check_config() -> bool:
     return True
 
 
+def _print_new_items_console(new_items: list[dict]):
+    """在终端醒目显示新增条目"""
+    if not new_items:
+        return
+
+    width = 60
+    print(f"\n{'=' * width}")
+    print(f"  {'🔴 新增内容 — ' + str(len(new_items)) + ' 条':^{width-4}}")
+    print(f"{'=' * width}")
+
+    # 按栏目分组
+    grouped = {}
+    for item in new_items:
+        section = item.get("section", "其他")
+        grouped.setdefault(section, []).append(item)
+
+    for section, items in grouped.items():
+        print(f"\n  ┌─ {section}（{len(items)} 条）")
+        for i, item in enumerate(items):
+            prefix = "  ├" if i < len(items) - 1 else "  └"
+            title = item.get("title", "无标题")[:50]
+            summary = item.get("summary", "")
+            print(f"  {prefix}─ {title}")
+            if summary:
+                s = summary.replace('\n', ' ')[:80]
+                print(f"  │  > {s}...")
+    print(f"\n{'=' * width}\n")
+
+
+def _save_report_md(all_items: list[dict], new_items: list[dict], timestamp: datetime):
+    """保存完整报告到本地 markdown 文件"""
+    filename = timestamp.strftime("%y%m%d%H%M.md")
+    filepath = Path(__file__).parent / filename
+
+    today = timestamp.strftime("%Y-%m-%d")
+    new_ids = {item.get("id") for item in new_items}
+
+    # 按栏目分组
+    grouped = {}
+    for item in all_items:
+        section = item.get("section", "其他")
+        grouped.setdefault(section, []).append(item)
+
+    lines = []
+    lines.append(f"# 📋 数字平台监控日报 {today}")
+    lines.append("")
+    lines.append(f"**生成时间**: {timestamp:%Y-%m-%d %H:%M:%S}")
+    lines.append(f"**抓取条数**: {len(all_items)} 条  |  **新增**: {len(new_items)} 条")
+    lines.append("")
+
+    # ── 置顶：新增内容 ──
+    if new_items:
+        lines.append("---")
+        lines.append("")
+        lines.append(f"## 🔴 新增内容（{len(new_items)} 条）")
+        lines.append("")
+
+        new_grouped = {}
+        for item in new_items:
+            s = item.get("section", "其他")
+            new_grouped.setdefault(s, []).append(item)
+
+        for section, items in new_grouped.items():
+            lines.append(f"### {section}")
+            lines.append("")
+            for item in items:
+                title = item.get("title", "无标题")
+                date_str = item.get("date", "")
+                link = item.get("link", "")
+                summary = item.get("summary", "")
+                text = item.get("text", "")
+
+                lines.append(f"#### {title}")
+                if date_str:
+                    lines.append(f"📅 {date_str}")
+                if link:
+                    lines.append(f"🔗 {link}")
+                lines.append("")
+                if summary:
+                    lines.append(f"> {summary}")
+                    lines.append("")
+                elif text:
+                    # 无 AI 摘要时显示原文前 200 字
+                    preview = text[:200].replace('\n', ' ').strip()
+                    lines.append(f"> {preview}...")
+                    lines.append("")
+                lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    # ── 全部条目 ──
+    lines.append(f"## 📊 全部条目（{len(all_items)} 条）")
+    lines.append("")
+
+    for section, items in grouped.items():
+        new_in_section = sum(1 for it in items if it.get("id") in new_ids)
+        header = f"### {section}（{len(items)} 条"
+        if new_in_section:
+            header += f"，其中新增 {new_in_section} 条"
+        header += "）"
+        lines.append(header)
+        lines.append("")
+
+        for item in items:
+            title = item.get("title", "无标题")
+            date_str = item.get("date", "")
+            summary = item.get("summary", "")
+            is_new = item.get("id") in new_ids
+
+            prefix = "🆕 " if is_new else ""
+            if summary and len(summary) > 5:
+                lines.append(f"- {prefix}**{title}** — {date_str}")
+                lines.append(f"  > {summary}")
+            else:
+                lines.append(f"- {prefix}{title} — {date_str}")
+            lines.append("")
+
+        lines.append("")
+
+    lines.append("---")
+    lines.append(f"*由数字平台监控脚本自动生成 · {today}*")
+    lines.append("")
+
+    content = "\n".join(lines)
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    print(f"[文件] 报告已保存到: {filepath.name}")
+
+
 def run_monitor():
     print(f"\n{'=' * 60}")
     print(f"  数字平台监控 — {datetime.now():%Y-%m-%d %H:%M:%S}")
@@ -104,11 +236,19 @@ def run_monitor():
         print("\n[AI] 正在调用 DeepSeek 生成摘要...")
         all_items = summarize_articles(all_items)
 
-        # 推送
+        # 差异比对
         new_items = find_new_items(all_items)
-        print(f"[差异] {len(new_items)} 条新增")
 
+        # ── 终端醒目显示新增 ──
+        _print_new_items_console(new_items)
+
+        # ── 微信推送 ──
         send_daily_report(all_items, len(new_items))
+
+        # ── 保存本地 Markdown 文件 ──
+        now = datetime.now()
+        _save_report_md(all_items, new_items, now)
+
         cleanup_old_items(days=30)
 
     except Exception as e:
